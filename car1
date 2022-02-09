@@ -1,0 +1,218 @@
+/******************************************************************************
+
+                              Online C++ Compiler.
+               Code, Compile, Run and Debug C++ program online.
+Write your code in this editor and press "Run" button to compile and execute it.
+
+*******************************************************************************/
+
+#include <iostream>
+#include <conio.h>
+#include <Windows.h>
+#include <chrono>
+
+using namespace std;
+
+#define MIN_TANK_VOLUME 40
+#define MAX_TANK_VOLUME 80
+#define MIN_ENGINE_CONSUMPTION 4
+#define MAX_ENGINE_CONSUMPTION 25
+
+
+class Tank //класс Бак
+{
+    const unsigned int VOLUME;
+    double fuel_level;
+public:
+    const unsigned int get_VOLUME()const
+    {
+        return VOLUME;
+    }
+    double get_fuel_level()const
+    {
+        return fuel_level;
+    }
+    double fill(double fuel)
+    {
+        if(fuel_level + fuel < 0)return fuel_level = 0;    
+        if(fuel_level+fuel>VOLUME)fuel_level=VOLUME;  //если суммарный уровень топлива превышает объем, тогда объем будет равен объему (в бак на 40 литров 200 литров не влить)
+        //if(fuel_level +fuel >=0 && fuel_level+fuel<=VOLUME)fuel_level+=fuel;
+        else return fuel_level=+fuel;
+    }
+    double give_fuel(double fuel) //позволяет только брать бензин с бака и возвращать то, что осталось
+    {
+        fuel_level-=fuel;
+        if(fuel_level <0)fuel_level=0; //если в баке нет топлива, то возвращаем ноль
+        return fuel_level;
+    }
+    //конструктор
+    Tank(unsigned int volume):VOLUME(volume>=MIN_TANK_VOLUME&&volume<=MAX_TANK_VOLUME?volume:MAX_TANK_VOLUME), fuel_level(0)
+    {
+        //this VOLUME->volume;
+        cout << "Tank is ready:\t" << this << endl;
+    }
+    ~Tank()
+    {
+        cout << "Tank is gone:\t" << this << endl;
+    }
+    void info()const
+    {
+    cout << "Tank volume:\t" << VOLUME << endl;
+    cout << "Tank level:\t" << fuel_level << endl;   
+    }
+    //на этом моменте бак готов
+};
+
+class Engine      //теперь класс Двигатель
+{
+    double consumption; //расход топлива
+    double consumption_per_second; //расход топлива в секунду
+    bool is_started;
+public:
+    double get_consumption()const
+    {
+        return consumption;
+    }
+    double get_consumption_per_second()const
+    {
+        return consumption_per_second;
+    }
+    bool get_started()const
+    {
+        return is_started;
+    }
+    bool start()
+    {
+        is_started=true;
+    }
+    bool stop()
+    {
+        is_started=false;
+    }
+    void set_consumption(double consumption)
+    {
+        if(consumption>=MIN_ENGINE_CONSUMPTION && consumption<=MAX_ENGINE_CONSUMPTION)
+        this->consumption=consumption;
+        else
+        this->consumption = MAX_ENGINE_CONSUMPTION / 2;
+        consumption_per_second = consumption * .3e-4; //это типа 10^-5
+    }
+    //конструктор
+    explicit Engine(double consumption)
+    {
+        set_consumption(consumption);
+        is_started = false;
+        cout << "Engine is ready:\t" << this << endl;
+    }
+    ~Engine()
+    {
+        cout << "Engine is gone:\t" << this << endl;
+    }
+    void info()const
+    {
+    cout << "Consumption:\t" << consumption << endl;
+    cout << "Consumption per second:\t" << consumption_per_second << endl;
+    cout << "Engine is:\t" << (is_started ? "started" : "stopped") << endl;
+    }
+};
+
+class Car
+{                   //в данном случае мы агрегировали (включили классы Tank и Engine в класс Car)
+    Tank tank;
+    Engine engine;
+    bool driver_inside;
+public:
+    //сразу пишем конструктор
+    Car(double engine_consumption, unsigned int tank_volume) :engine(engine_consumption), tank(tank_volume) //машина принимает 2 переменные Бак и Двигатель
+    //и при наследовании, и при агрегировании мы используем делегирование конструкторов
+    {
+        driver_inside=false; //когда машина сходит с конвейера, то в ней нет водителя
+        cout << "Your car is ready to go\t" << this  << endl;
+    }
+    ~Car()
+    {
+        cout << "Your car is over\t" << endl;
+    }
+    
+    void fill(double fuel) //метод как "крышка топливного бака" - передает объём топлива, который хотим залить в бак
+    {
+        tank.fill(fuel);
+    }
+    void start_engine() //метод завода машины с условием "Если есть топливо в баке, то машина заводится"
+    {
+       if(tank.get_fuel_level())engine.start(); 
+    }
+    void stop_engine() //если в баке нет топлива, то машина не заведется
+    {
+        engine.stop();
+    }
+    void get_in()
+    {
+        driver_inside=true;
+    }
+    void get_out()
+    {
+        driver_inside=false;
+    }
+    void control() //метод управления машиной
+    {
+       char key;
+       do
+       {
+           key=_getch();
+           switch(key)
+           {
+               case 13: //сесть в машину. Нужно отобразить панель приборов
+               break;
+               case 'F':
+               case 'f': //заправить машину
+               double fuel;
+               cout << "Введите объем топлива:"; cin >> fuel;
+               fill(fuel);
+               break;
+               case 'I':
+               case 'i': //Ignition - зажигание
+               //все процессы в машине происодят с интервалом в одну секунду
+               break;
+           }
+       } while(key!=27);
+    }
+    
+    void control_panel()
+    {
+        while(driver_inside)
+        {
+            cout << "Fuel level: " << tank.get_fuel_level() << " liters.\n";
+            cout << "Engine is: " << (engine.started() ? "started" : "stopped") << endl;
+        }
+    }
+    
+    void info()const
+    {
+        tank.info();
+        engine.info();
+    }
+};
+
+int main()
+{
+  setlocale(LC_ALL, "ru");
+//Tank Check
+/*Tank tank(120);
+tank.info();
+int fuel;
+while(true)
+{
+cout << "Введите объем: "; cin >> fuel;
+tank.fill(fuel);
+tank.info();*/
+
+//Engine Check
+/*Engine engine(9);
+engine.info();*/
+
+Car bmw(8, 80);
+bmw.info();
+
+return 0;
+}
