@@ -27,10 +27,18 @@ uml - unified modeling language (унифицированный язык мод�
 (автомоболь - агрегирование. Без колеса существовать сможет;
 челоек - композиция. без почки прожить не сможет)
 
+/******************************************************************************
+
+                              Online C++ Compiler.
+               Code, Compile, Run and Debug C++ program online.
+Write your code in this editor and press "Run" button to compile and execute it.
+
+*******************************************************************************/
 #include <iostream>
 #include <conio.h>
 #include <Windows.h>
 #include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -38,7 +46,6 @@ using namespace std;
 #define MAX_TANK_VOLUME 80
 #define MIN_ENGINE_CONSUMPTION 4
 #define MAX_ENGINE_CONSUMPTION 25
-
 
 class Tank //класс Бак
 {
@@ -104,11 +111,11 @@ public:
     }
     bool start()
     {
-        is_started=true;
+       return is_started=true;
     }
     bool stop()
     {
-        is_started=false;
+       return is_started=false;
     }
     void set_consumption(double consumption)
     {
@@ -116,7 +123,7 @@ public:
         this->consumption=consumption;
         else
         this->consumption = MAX_ENGINE_CONSUMPTION / 2;
-        consumption_per_second = consumption * .3e-4; //это типа 10^-5
+        consumption_per_second = this -> consumption * .3e-4; //это типа 10^-5
     }
     //конструктор
     explicit Engine(double consumption)
@@ -137,17 +144,27 @@ public:
     }
 };
 
+#define Enter   13
+#define Escape  27
+
 class Car
 {                   //в данном случае мы агрегировали (включили классы Tank и Engine в класс Car)
     Tank tank;
     Engine engine;
     bool driver_inside;
+    struct Control
+    {
+    std::thread panel_thread;           //отображение панели приборов
+    std::thread engine_idle_thread;     //холостой ход двигателя
+    std::thread:: free_wheeling_thread; //движение машины по инерции
+    }control;
 public:
     //сразу пишем конструктор
     Car(double engine_consumption, unsigned int tank_volume) :engine(engine_consumption), tank(tank_volume) //машина принимает 2 переменные Бак и Двигатель
     //и при наследовании, и при агрегировании мы используем делегирование конструкторов
     {
         driver_inside=false; //когда машина сходит с конвейера, то в ней нет водителя
+/*        control.panel_thread = nullptr;*/
         cout << "Your car is ready to go\t" << this  << endl;
     }
     ~Car()
@@ -162,20 +179,26 @@ public:
     void start_engine() //метод завода машины с условием "Если есть топливо в баке, то машина заводится"
     {
        if(tank.get_fuel_level())engine.start(); 
+       control.engine_idle_thread = std::thread(&Car::engine_idle, this);
     }
     void stop_engine() //если в баке нет топлива, то машина не заведется
     {
         engine.stop();
+        control.engine_idle_thread.join();
     }
     void get_in()
     {
         driver_inside=true;
+        control.panel_thread = std::thread(&Car::control_panel, this); //запускаем метод control_panel в отдельном потоке
     }
     void get_out()
     {
         driver_inside=false;
+        control.panel_thread.join(); //останавливаем выполнение потока panel_thread
+        system("CLS");
+        cout << "You are out of the car";
     }
-    void control() //метод управления машиной
+    void control_car() //метод управления машиной
     {
        char key;
        do
@@ -183,7 +206,9 @@ public:
            key=_getch();
            switch(key)
            {
-               case 13: //сесть в машину. Нужно отобразить панель приборов
+               case Enter: //сесть в машину. Нужно отобразить панель приборов
+               if(driver_inside)get_out();
+               else get_in();
                break;
                case 'F':
                case 'f': //заправить машину
@@ -194,17 +219,30 @@ public:
                case 'I':
                case 'i': //Ignition - зажигание
                //все процессы в машине происодят с интервалом в одну секунду
+               if(engine.started())stop_engine();
+               else start_engine();
+               break;
+               case Escape:
+              if(control.panel_thread.joinable()) get_out();
                break;
            }
        } while(key!=27);
     }
     
-    void control_panel()
+    void engine_idle()
+    {
+        while(engine.started()&&tank.give_fuel(engine.get_consumption_per_second()) //пока движгатель запущен и бак дает двигателю столько топлива, сколько ему нужно за секунду
+        std::this_thread::sleep_for(is);                                            //столько мы будем его брать
+    }
+    
+    void control_panel() //данный метод будет запускаться в потоке
     {
         while(driver_inside)
         {
+            system("CLS");
             cout << "Fuel level: " << tank.get_fuel_level() << " liters.\n";
             cout << "Engine is: " << (engine.started() ? "started" : "stopped") << endl;
+            std::this_thread::sleep_for(is);
         }
     }
     
@@ -233,7 +271,8 @@ tank.info();*/
 engine.info();*/
 
 Car bmw(8, 80);
-bmw.info();
+bmw.control_car();
+cout << "Press Enter to get in" << endl;
 
 return 0;
 }
